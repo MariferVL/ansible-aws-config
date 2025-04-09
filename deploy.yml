@@ -1,0 +1,14 @@
+- name: Bootstrap Environment
+  hosts: webservers
+  gather_facts: yes
+  become: yes
+  roles:
+    - bootstrap
+
+- name: Deploy Application
+  hosts: webservers
+  vars:
+    db_host: "{{ hostvars['databases'][0] }}"
+  tasks:
+    - include_role:
+        name: deploy
