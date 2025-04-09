@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+    parameters {
+        string(name: 'INSTANCE_IP', description: 'EC2 Public IP from Terraform')
+        string(name: 'RDS_ENDPOINT', description: 'RDS Endpoint from Terraform')
+        string(name: 'JIRA_ISSUE_KEY', description: 'JIRA Issue Key (e.g., WN-123)')
+    }
+    stages {
+        stage('Deploy App') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'devops-key', variable: 'SSH_KEY'),
+                    usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    script {
+                        sh '''
+                            sudo pip3 install botocore boto3 ansible
+                            ansible-galaxy collection install amazon.aws
+                        '''
+                        sh """
+                            sed -i 's/<INSTANCE_PUBLIC_IP>/${params.INSTANCE_IP}/g' inventory.ini
+                            sed -i 's/<RDS_ENDPOINT>/${params.RDS_ENDPOINT}/g' inventory.ini
+                        """
+                        sh '''
+                            mkdir -p ~/.ssh
+                            cp "$SSH_KEY" ~/.ssh/devops-key
+                            chmod 600 ~/.ssh/devops-key
+                        '''
+                        sh 'ansible-playbook -i inventory.ini deploy.yml --extra-vars "db_host=${params.RDS_ENDPOINT}"'
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                jiraComment issueKey: "${params.JIRA_ISSUE_KEY}", 
+                            body: "✅ CD Pipeline Success: ${BUILD_URL}"
+            }
+        }
+        failure {
+            script {
+                jiraComment issueKey: "${params.JIRA_ISSUE_KEY}", 
+                            body: "❌ CD Pipeline Failed: ${BUILD_URL}"
+            }
+        }
+    }
+}

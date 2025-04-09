@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT-0
+---
+- name: Deploy Application Container
+  docker_container:
+    name: whatsnext_api
+    image: "marifervl/whats-next-api:latest"
+    state: started
+    restart_policy: always
+    published_ports:
+      - "5000:5000"
+    env:
+      FLASK_ENV: "production"
+      JWT_SECRET_KEY: "{{ lookup('aws_ssm', '/prod/db/jwt_secret_key') }}"
+      SQLALCHEMY_DATABASE_URI: "mysql+pymysql://{{ lookup('aws_ssm', '/prod/db/user') }}:{{ lookup('aws_ssm', '/prod/db/pass') }}@{{ db_host }}/{{ lookup('aws_ssm', '/prod/db/name') }}"
