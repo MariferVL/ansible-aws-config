@@ -6,6 +6,11 @@ pipeline {
         string(name: 'JIRA_ISSUE_KEY', description: 'JIRA Issue Key (e.g., WN-123)')
     }
     stages {
+        stage('Checkout') {
+        	steps {
+            	checkout scm
+        	}
+        }
         stage('Deploy App') {
             steps {
                 withCredentials([
@@ -13,21 +18,37 @@ pipeline {
                     usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     script {
+                        // Block 1: Set up the virtual environment and install dependencies
                         sh '''
-                            sudo pip3 install botocore boto3 ansible
+                            if [ ! -d "${WORKSPACE}/venv_ansible" ] || [ ! -f "${WORKSPACE}/venv_ansible/bin/activate" ]; then
+                                echo "Creating or updating the Ansible virtual environment..."
+                                rm -rf "${WORKSPACE}/venv_ansible"
+                                python3 -m venv --upgrade-deps "${WORKSPACE}/venv_ansible"
+                            fi
+
+                            . "${WORKSPACE}/venv_ansible/bin/activate"
+                            pip install --upgrade pip
+                            pip install botocore boto3 ansible
                             ansible-galaxy collection install amazon.aws
                         '''
+
+                        // Block 2: Update the inventory file with dynamic parameters
                         sh """
                             sed -i 's/<INSTANCE_PUBLIC_IP>/${params.INSTANCE_IP}/g' inventory.ini
                             sed -i 's/<RDS_ENDPOINT>/${params.RDS_ENDPOINT}/g' inventory.ini
                         """
+
+                        // Block 3: Configure SSH key for secure access
                         sh '''
                             mkdir -p ~/.ssh
                             cp "$SSH_KEY" ~/.ssh/devops-key
                             chmod 600 ~/.ssh/devops-key
                         '''
+
+                        // Block 4: Execute the Ansible playbook with extra variables
                         sh 'ansible-playbook -i inventory.ini deploy.yml --extra-vars "db_host=${params.RDS_ENDPOINT}"'
                     }
+
                 }
             }
         }
@@ -45,5 +66,8 @@ pipeline {
                             body: "❌ CD Pipeline Failed: ${BUILD_URL}"
             }
         }
+        always {
+            cleanWs()
+        }
     }
-}
+}        
