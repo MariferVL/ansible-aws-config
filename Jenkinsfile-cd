@@ -34,8 +34,8 @@ pipeline {
                         
                         // Block 2: Update the inventory file with dynamic parameters
                         sh """
-                            sed -i 's/<INSTANCE_PUBLIC_IP>/${params.INSTANCE_IP}/g' inventory.ini
-                            sed -i 's/<RDS_ENDPOINT>/${params.RDS_ENDPOINT}/g' inventory.ini
+                            sed -i "s/<INSTANCE_PUBLIC_IP>/${params.INSTANCE_IP}/g" inventory.ini
+                            sed -i "s/<RDS_ENDPOINT>/${params.RDS_ENDPOINT}/g" inventory.ini
                         """
                         
                         // Block 3: Configure SSH key for secure access
@@ -46,7 +46,7 @@ pipeline {
                         '''
                         
                         // Block 4: Execute the Ansible playbook with extra variables
-                        sh 'ansible-playbook -i inventory.ini deploy.yml --extra-vars "db_host=${params.RDS_ENDPOINT}"'
+                        sh "ansible-playbook -i inventory.ini deploy.yml --extra-vars \"db_host=${params.RDS_ENDPOINT}\""
                     }
                 }
             }
