@@ -55,16 +55,10 @@ pipeline {
     }
     post {
         success {
-            script {
-                jiraComment issueKey: "${params.JIRA_ISSUE_KEY}", 
-                            body: "✅ CD Pipeline Success: ${BUILD_URL}"
-            }
+            echo "✅ CD Pipeline Success: ${BUILD_URL}"
         }
         failure {
-            script {
-                jiraComment issueKey: "${params.JIRA_ISSUE_KEY}", 
-                            body: "❌ CD Pipeline Failed: ${BUILD_URL}"
-            }
+            echo "❌ CD Pipeline Failed: ${BUILD_URL}"
         }
         always {
             cleanWs()
