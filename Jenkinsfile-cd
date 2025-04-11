@@ -44,8 +44,11 @@ pipeline {
                             cp "$SSH_KEY" ~/.ssh/devops-key
                             chmod 600 ~/.ssh/devops-key
                         '''
-                        
-                        // Block 4: Execute the Ansible playbook with extra variables
+
+                        // Block 4: Add host key to known_hosts
+                        sh "ssh-keyscan -H ${params.INSTANCE_IP} >> ~/.ssh/known_hosts"
+
+                        // Block 5: Execute the Ansible playbook with extra variables
                         sh "ansible-playbook -i inventory.ini deploy.yml --extra-vars \"db_host=${params.RDS_ENDPOINT}\""
                     }
                 }
