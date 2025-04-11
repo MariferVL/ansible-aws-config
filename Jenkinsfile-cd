@@ -7,15 +7,15 @@ pipeline {
     }
     stages {
         stage('Checkout') {
-        	steps {
-            	checkout scm
-        	}
+            steps {
+                checkout scm
+            }
         }
         stage('Deploy App') {
             steps {
                 withCredentials([
                     file(credentialsId: 'devops-key', variable: 'SSH_KEY'),
-                    usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']
                 ]) {
                     script {
                         // Block 1: Set up the virtual environment and install dependencies
@@ -31,24 +31,23 @@ pipeline {
                             pip install botocore boto3 ansible
                             ansible-galaxy collection install amazon.aws
                         '''
-
+                        
                         // Block 2: Update the inventory file with dynamic parameters
                         sh """
                             sed -i 's/<INSTANCE_PUBLIC_IP>/${params.INSTANCE_IP}/g' inventory.ini
                             sed -i 's/<RDS_ENDPOINT>/${params.RDS_ENDPOINT}/g' inventory.ini
                         """
-
+                        
                         // Block 3: Configure SSH key for secure access
                         sh '''
                             mkdir -p ~/.ssh
                             cp "$SSH_KEY" ~/.ssh/devops-key
                             chmod 600 ~/.ssh/devops-key
                         '''
-
+                        
                         // Block 4: Execute the Ansible playbook with extra variables
                         sh 'ansible-playbook -i inventory.ini deploy.yml --extra-vars "db_host=${params.RDS_ENDPOINT}"'
                     }
-
                 }
             }
         }
@@ -64,4 +63,4 @@ pipeline {
             cleanWs()
         }
     }
-}        
+}
